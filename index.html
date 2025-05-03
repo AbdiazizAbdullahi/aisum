@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Text Summarizer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>AI Text Summarizer</h1>
+
+        <div class="input-section">
+            <h2>Enter Text or Upload File</h2>
+            <textarea id="inputText" rows="10" placeholder="Paste your text here..."></textarea>
+            <div class="file-upload">
+                <label for="fileInput">Or upload a .txt or .pdf file:</label>
+                <input type="file" id="fileInput" accept=".txt, .pdf">
+            </div>
+            <button id="summarizeBtn">Summarize</button>
+            <p id="status"></p>
+        </div>
+
+        <div class="output-section">
+            <h2>Summary</h2>
+            <div id="summaryOutput" class="output-box"></div>
+        </div>
+
+        <div class="history-section">
+            <h2>History</h2>
+            <ul id="historyList"></ul>
+            <button id="clearHistoryBtn">Clear History</button>
+        </div>
+    </div>
+
+    <!-- PouchDB Script -->
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <!-- pdf.js Script (including worker) -->
+    <!-- Make sure the version numbers match -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+
+    <!-- Main Script -->
+    <script src="script.js"></script>
+</body>
+</html>
