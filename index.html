@@ -7,8 +7,33 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+    <div class="auth-container">
+        <div id="authForms">
+            <!-- Signup Form -->
+            <div id="signupForm" class="auth-form">
+                <h2>Sign Up</h2>
+                <input type="text" id="signupUsername" placeholder="Username" required>
+                <input type="password" id="signupPassword" placeholder="Password" required>
+                <button id="signupBtn">Sign Up</button>
+                <p>Already have an account? <a href="#" id="showLogin">Login</a></p>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginForm" class="auth-form" style="display: none;">
+                <h2>Login</h2>
+                <input type="text" id="loginUsername" placeholder="Username" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button id="loginBtn">Login</button>
+                <p>Don't have an account? <a href="#" id="showSignup">Sign Up</a></p>
+            </div>
+        </div>
+        <p id="authStatus" class="auth-status"></p>
+    </div>
+
+    <!-- Main Summarizer Content (Initially Hidden) -->
+    <div class="container" id="mainContent" style="display: none;">
         <h1>AI Text Summarizer</h1>
+        <button id="logoutBtn" style="display: none;">Logout</button>
 
         <div class="input-section">
             <h2>Enter Text or Upload File</h2>
@@ -39,6 +64,9 @@
     <!-- Make sure the version numbers match -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+
+    <!-- Crypto-JS for hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 
     <!-- Main Script -->
     <script src="script.js"></script>

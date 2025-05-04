@@ -14,10 +14,17 @@ if (typeof pdfjsLib === 'undefined') {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 
-// Initialize PouchDB
-const db = new PouchDB('summaries_db');
+// Check if CryptoJS is loaded
+if (typeof CryptoJS === 'undefined') {
+    console.error('CryptoJS library not found. Make sure crypto-js.min.js is included.');
+    alert('Error: CryptoJS not loaded. Authentication will not work.');
+}
 
-// DOM Elements
+// Initialize PouchDB instances
+const db = new PouchDB('summaries_db'); // Existing DB for summaries
+const authDb = new PouchDB('user_auth'); // New DB for authentication
+
+// DOM Elements (Existing)
 const inputText = document.getElementById('inputText');
 const fileInput = document.getElementById('fileInput');
 const summarizeBtn = document.getElementById('summarizeBtn');
@@ -26,6 +33,23 @@ const historyList = document.getElementById('historyList');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const statusElement = document.getElementById('status');
 
+// DOM Elements (Auth - New)
+const authContainer = document.querySelector('.auth-container');
+const authForms = document.getElementById('authForms');
+const signupForm = document.getElementById('signupForm');
+const loginForm = document.getElementById('loginForm');
+const signupUsernameInput = document.getElementById('signupUsername');
+const signupPasswordInput = document.getElementById('signupPassword');
+const loginUsernameInput = document.getElementById('loginUsername');
+const loginPasswordInput = document.getElementById('loginPassword');
+const signupBtn = document.getElementById('signupBtn');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const showLoginLink = document.getElementById('showLogin');
+const showSignupLink = document.getElementById('showSignup');
+const authStatusElement = document.getElementById('authStatus');
+const mainContent = document.getElementById('mainContent');
+
 // --- Configuration ---
 // IMPORTANT: Replace with the correct Gemini API endpoint and model.
 // Check Google AI documentation for the latest details.
@@ -33,13 +57,168 @@ const GEMINI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/mo
 // WARNING: Hardcoding API keys is insecure for production apps.
 const API_KEY = "AIzaSyAZ98dBqFlrMqIy1RTFPI3glIB1JXI3oeU";
 
+// --- Authentication Logic (New Section) ---
+
+function setAuthStatus(message, isError = false) {
+    authStatusElement.textContent = message;
+    authStatusElement.style.color = isError ? '#d9534f' : '#4cae4c'; // Use alert colors
+}
+
+function hashPassword(password) {
+    // Basic hashing - NOT SUITABLE FOR PRODUCTION (use bcrypt on backend ideally)
+    return CryptoJS.SHA256(password).toString();
+}
+
+async function signup() {
+    const username = signupUsernameInput.value.trim();
+    const password = signupPasswordInput.value.trim();
+
+    if (!username || !password) {
+        setAuthStatus('Username and password are required.', true);
+        return;
+    }
+
+    setAuthStatus('Signing up...', false);
+
+    try {
+        // Check if user already exists
+        try {
+            await authDb.get(username);
+            setAuthStatus('Username already exists.', true);
+            return; // Exit if user exists
+        } catch (err) {
+            if (err.name !== 'not_found') {
+                throw err; // Re-throw unexpected errors
+            }
+            // If 'not_found', it's good, we can proceed
+        }
+
+        const hashedPassword = hashPassword(password);
+        await authDb.put({
+            _id: username,
+            passwordHash: hashedPassword
+        });
+
+        setAuthStatus('Signup successful! Please log in.', false);
+        signupUsernameInput.value = '';
+        signupPasswordInput.value = '';
+        showLoginForm(); // Switch to login form after successful signup
+    } catch (err) {
+        console.error('Signup Error:', err);
+        setAuthStatus('Signup failed. Please try again.', true);
+    }
+}
+
+async function login() {
+    const username = loginUsernameInput.value.trim();
+    const password = loginPasswordInput.value.trim();
+
+    if (!username || !password) {
+        setAuthStatus('Username and password are required.', true);
+        return;
+    }
+
+    setAuthStatus('Logging in...', false);
+
+    try {
+        const userDoc = await authDb.get(username);
+        const hashedPassword = hashPassword(password);
+
+        if (userDoc.passwordHash === hashedPassword) {
+            sessionStorage.setItem('loggedInUser', username); // Store session
+            setAuthStatus(''); // Clear status on success
+            loginUsernameInput.value = '';
+            loginPasswordInput.value = '';
+            console.log('Login successful. Calling showAppContent for user:', username); // <<< DEBUG LOG
+            showAppContent(username);
+        } else {
+            setAuthStatus('Invalid username or password.', true);
+        }
+    } catch (err) {
+        if (err.name === 'not_found') {
+            setAuthStatus('Invalid username or password.', true);
+        } else {
+            console.error('Login Error:', err);
+            setAuthStatus('Login failed. Please try again.', true);
+        }
+    }
+}
+
+function logout() {
+    sessionStorage.removeItem('loggedInUser');
+    showAuthForms();
+}
+
+function showLoginForm() {
+    signupForm.style.display = 'none';
+    loginForm.style.display = 'block';
+    setAuthStatus(''); // Clear status when switching forms
+}
+
+function showSignupForm() {
+    loginForm.style.display = 'none';
+    signupForm.style.display = 'block';
+    setAuthStatus(''); // Clear status when switching forms
+}
+
+function showAppContent(username) {
+    console.log('showAppContent called for user:', username); // <<< DEBUG LOG
+    authContainer.style.display = 'none'; // Hide the entire auth section
+    mainContent.style.display = 'block';
+    console.log('Attempting to show logout button:', logoutBtn); // <<< DEBUG LOG
+    logoutBtn.style.display = 'inline-block'; // Show logout button
+    console.log('Logout button display style set to:', logoutBtn.style.display); // <<< DEBUG LOG
+    const welcomeTitle = mainContent.querySelector('h1');
+    if (welcomeTitle) {
+        welcomeTitle.textContent = `AI Text Summarizer (Logged in as: ${username})`; // Optional: Show logged-in user
+    }
+
+    // Load history *after* login
+    loadHistory();
+}
+
+function showAuthForms() {
+    mainContent.style.display = 'none';
+    logoutBtn.style.display = 'none'; // Hide logout button
+    authContainer.style.display = 'block'; // Show the auth section
+    showLoginForm(); // Default to showing login form
+    const welcomeTitle = mainContent.querySelector('h1');
+    if (welcomeTitle) {
+        welcomeTitle.textContent = `AI Text Summarizer`; // Reset title
+    }
+    // Clear sensitive fields on logout/show auth
+    loginUsernameInput.value = '';
+    loginPasswordInput.value = '';
+    signupUsernameInput.value = '';
+    signupPasswordInput.value = '';
+    setAuthStatus(''); // Clear auth status
+}
+
+function checkLoginState() {
+    const loggedInUser = sessionStorage.getItem('loggedInUser');
+    if (loggedInUser) {
+        showAppContent(loggedInUser);
+    } else {
+        showAuthForms();
+    }
+}
+
 // --- Event Listeners ---
+
+// Auth Listeners (New)
+signupBtn.addEventListener('click', signup);
+loginBtn.addEventListener('click', login);
+logoutBtn.addEventListener('click', logout);
+showLoginLink.addEventListener('click', (e) => { e.preventDefault(); showLoginForm(); });
+showSignupLink.addEventListener('click', (e) => { e.preventDefault(); showSignupForm(); });
+
+// Existing Listeners (Remain the same, but only functional when mainContent is visible)
 summarizeBtn.addEventListener('click', handleSummarize);
 fileInput.addEventListener('change', handleFileUpload);
 clearHistoryBtn.addEventListener('click', clearHistory);
 
-// Load history on page load
-document.addEventListener('DOMContentLoaded', loadHistory);
+// Load initial state on page load
+document.addEventListener('DOMContentLoaded', checkLoginState);
 
 // --- Functions ---
 
